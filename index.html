@@ -7,7 +7,6 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<!-- ✅ ফিক্স ১: Bootstrap JS (মডালের জন্য জরুরি) -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <style>
   * { font-family: 'Hind Siliguri', sans-serif; }
@@ -32,8 +31,6 @@
     box-shadow: 0 1px 4px rgba(0,0,0,.04);
   }
 
-  .nav-tabs .nav-link { color:#475569; font-weight:600; }
-  .nav-tabs .nav-link.active { color:#1e40af; }
   .stat-card { border:none; border-radius:14px; color:#fff; }
   .stat-card h3 { font-weight:700; margin:0; font-size:1.6rem; }
   .stat-card small { opacity:.9; font-size:.8rem; }
@@ -58,7 +55,6 @@
   .admin-lock h4 { font-weight:700; text-align:center; margin-bottom:8px; }
   .admin-lock p { text-align:center; color:#64748b; font-size:.9rem; }
 
-  /* Modal icon style */
   .modal-icon {
     width: 64px; height: 64px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
@@ -66,11 +62,35 @@
   }
   .modal-icon.warn { background:#fef3c7; color:#92400e; }
   .modal-icon.danger { background:#fee2e2; color:#991b1b; }
+
+  /* ---- কলাপ্স হেডার ---- */
+  .collapse-head {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    user-select: none;
+  }
+  .collapse-head h6 { margin: 0; }
+  .collapse-head .arrow { transition: transform .25s; color:#64748b; }
+  .collapse-head[aria-expanded="true"] .arrow { transform: rotate(180deg); }
+  .collapse-body { padding: 0 16px 16px; }
+  .count-pill {
+    background:#e0e7ff; color:#3730a3; font-size:.75rem; font-weight:600;
+    border-radius:20px; padding:2px 10px; margin-left:8px;
+  }
+
+  /* ---- অ্যাডমিন অ্যাকশন বাটন ---- */
+  .admin-actions { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+  .admin-actions .btn { flex:1 1 0; min-width:110px; font-weight:600; padding:10px 8px; }
+
+  .entry-modal .modal-content { border:0; border-radius:16px; }
+  .entry-modal .modal-header { border-bottom:1px solid #e2e8f0; }
 </style>
 </head>
 <body>
 
-<!-- ✅ ফিক্স ৩: Toast container বডির শুরুতে -->
 <div id="toastBox" class="position-fixed top-0 end-0 p-3" style="z-index:9999"></div>
 
 <div class="header-section">
@@ -86,8 +106,9 @@
 
 <div class="container-fluid p-3">
 
-  <!-- DASHBOARD VIEW -->
+  <!-- ================= DASHBOARD VIEW ================= -->
   <div id="view-dashboard">
+
     <div class="row g-3 mb-3">
       <div class="col-6 col-md-4 col-lg-2"><div class="stat-card bg-1 p-3"><small>মোট স্টক</small><h3 id="totalStock">0</h3></div></div>
       <div class="col-6 col-md-4 col-lg-2"><div class="stat-card bg-2 p-3"><small>মোট ইস্যু</small><h3 id="totalIssued">0</h3></div></div>
@@ -95,6 +116,15 @@
       <div class="col-6 col-md-4 col-lg-2"><div class="stat-card bg-4 p-3"><small>সহকারীর কাছে</small><h3 id="withAst">0</h3></div></div>
       <div class="col-6 col-md-4 col-lg-2"><div class="stat-card bg-5 p-3"><small>অবশিষ্ট</small><h3 id="remaining">0</h3></div></div>
       <div class="col-6 col-md-4 col-lg-2"><div class="stat-card bg-6 p-3"><small>বিক্রয় (৳)</small><h3 id="totalAmount">0</h3></div></div>
+    </div>
+
+    <!-- ✅ সহকারী ব্যালেন্স — ড্যাশবোর্ডের ঠিক নিচে -->
+    <div class="card-box p-3 mb-3">
+      <h6 class="fw-bold mb-2">👤 সহকারী ব্যালেন্স</h6>
+      <div class="table-responsive"><table class="table table-hover align-middle mb-0">
+        <thead><tr><th>সহকারী</th><th class="text-center">ইস্যু</th><th class="text-center">বিক্রয়</th><th class="text-center">ব্যালেন্স</th><th class="text-end">বিক্রয় (৳)</th></tr></thead>
+        <tbody id="astTable"></tbody>
+      </table></div>
     </div>
 
     <div class="card-box p-3 mb-3">
@@ -112,24 +142,24 @@
       <div class="col-lg-4"><div class="card-box p-3"><h6 class="fw-bold mb-2">🥧 স্টক অবস্থা</h6><canvas id="pieChart" height="180"></canvas></div></div>
     </div>
 
-    <div class="card-box p-3 mb-3">
-      <h6 class="fw-bold mb-2">📋 ট্রেন ও স্টেশন ভিত্তিক স্টক</h6>
-      <div class="table-responsive"><table class="table table-hover align-middle">
-        <thead><tr><th>ট্রেন</th><th>স্টেশন</th><th class="text-center">স্টক</th><th class="text-center">ইস্যু</th><th class="text-center">বিক্রয়</th><th class="text-center">সহকারীর কাছে</th><th class="text-center">অবশিষ্ট</th><th class="text-center">অবস্থা</th></tr></thead>
-        <tbody id="stockTable"></tbody>
-      </table></div>
-    </div>
-
-    <div class="card-box p-3">
-      <h6 class="fw-bold mb-2">👤 সহকারী ব্যালেন্স</h6>
-      <div class="table-responsive"><table class="table table-hover align-middle">
-        <thead><tr><th>সহকারী</th><th class="text-center">ইস্যু</th><th class="text-center">বিক্রয়</th><th class="text-center">ব্যালেন্স</th><th class="text-end">বিক্রয় (৳)</th></tr></thead>
-        <tbody id="astTable"></tbody>
-      </table></div>
+    <!-- ✅ ট্রেন ও স্টেশন ভিত্তিক স্টক — কলাপ্স -->
+    <div class="card-box mb-3">
+      <div class="collapse-head" data-bs-toggle="collapse" data-bs-target="#stationStockCollapse" aria-expanded="false" aria-controls="stationStockCollapse">
+        <h6 class="fw-bold">📋 ট্রেন ও স্টেশন ভিত্তিক স্টক <span class="count-pill" id="stationCount">0</span></h6>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="collapse" id="stationStockCollapse">
+        <div class="collapse-body">
+          <div class="table-responsive"><table class="table table-hover align-middle mb-0">
+            <thead><tr><th>ট্রেন</th><th>স্টেশন</th><th class="text-center">স্টক</th><th class="text-center">ইস্যু</th><th class="text-center">বিক্রয়</th><th class="text-center">সহকারীর কাছে</th><th class="text-center">অবশিষ্ট</th><th class="text-center">অবস্থা</th></tr></thead>
+            <tbody id="stockTable"></tbody>
+          </table></div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- ADMIN GATE -->
+  <!-- ================= ADMIN GATE ================= -->
   <div id="view-admin-gate" class="hidden">
     <div class="admin-lock">
       <h4>⚙️ অ্যাডমিন প্যানেল</h4>
@@ -141,91 +171,145 @@
     </div>
   </div>
 
-  <!-- ADMIN VIEW -->
+  <!-- ================= ADMIN VIEW ================= -->
   <div id="view-admin" class="hidden">
 
-    <ul class="nav nav-tabs mb-3">
-      <li class="nav-item"><a class="nav-link active" data-atab="stock" href="#">📥 স্টক</a></li>
-      <li class="nav-item"><a class="nav-link" data-atab="issue" href="#">👤 ইস্যু</a></li>
-      <li class="nav-item"><a class="nav-link" data-atab="sales" href="#">💰 বিক্রয়</a></li>
-    </ul>
+    <!-- ✅ উপরে বাটন: ক্লিক করলে পপ-আপ এন্ট্রি -->
+    <div class="admin-actions">
+      <button class="btn btn-primary" onclick="openStockModal()">📥 স্টক</button>
+      <button class="btn btn-success" onclick="openIssueModal()">👤 ইস্যু</button>
+      <button class="btn btn-warning" onclick="openSaleModal()">💰 বিক্রয়</button>
+    </div>
 
-    <!-- STOCK TAB -->
-    <div id="atab-stock">
-      <div class="card-box p-3 mb-3">
-        <h6 class="fw-bold mb-3" id="stockFormTitle">➕ নতুন স্টক এন্ট্রি</h6>
-        <div class="row g-2">
-          <div class="col-md-2"><label class="form-label small">তারিখ</label><input type="date" id="s_date" class="form-control"></div>
-          <div class="col-md-2"><label class="form-label small">ট্রেন</label><select id="s_train" class="form-select"></select></div>
-          <div class="col-md-2"><label class="form-label small">স্টেশন</label><select id="s_station" class="form-select"></select></div>
-          <div class="col-md-1"><label class="form-label small">ক্লাস</label><input value="শোভন" class="form-control" readonly></div>
-          <div class="col-md-2"><label class="form-label small">পরিমাণ</label><input type="number" id="s_qty" class="form-control" min="1"></div>
-          <div class="col-md-2"><label class="form-label small">নোট</label><input id="s_note" class="form-control"></div>
-          <div class="col-md-1 d-flex align-items-end"><button class="btn btn-primary w-100" onclick="saveStock()" id="s_btn">সেভ</button></div>
-        </div>
-        <button class="btn btn-sm btn-link mt-2 hidden" id="s_cancel" onclick="cancelStock()">✖ বাতিল</button>
+    <!-- ✅ স্টক তালিকা — কলাপ্স -->
+    <div class="card-box mb-3">
+      <div class="collapse-head" data-bs-toggle="collapse" data-bs-target="#stockListCollapse" aria-expanded="false" aria-controls="stockListCollapse">
+        <h6 class="fw-bold">📋 স্টক তালিকা <span class="count-pill" id="stockCount">0</span></h6>
+        <span class="arrow">▼</span>
       </div>
-      <div class="card-box p-3">
-        <h6 class="fw-bold mb-3">📋 স্টক তালিকা</h6>
-        <div class="table-responsive"><table class="table table-hover">
-          <thead><tr><th>ID</th><th>তারিখ</th><th>ট্রেন</th><th>স্টেশন</th><th>পরিমাণ</th><th>নোট</th><th>অ্যাকশন</th></tr></thead>
-          <tbody id="stockRows"></tbody>
-        </table></div>
+      <div class="collapse" id="stockListCollapse">
+        <div class="collapse-body">
+          <div class="table-responsive"><table class="table table-hover mb-0">
+            <thead><tr><th>ID</th><th>তারিখ</th><th>ট্রেন</th><th>স্টেশন</th><th>পরিমাণ</th><th>নোট</th><th>অ্যাকশন</th></tr></thead>
+            <tbody id="stockRows"></tbody>
+          </table></div>
+        </div>
       </div>
     </div>
 
-    <!-- ISSUE TAB -->
-    <div id="atab-issue" class="hidden">
-      <div class="card-box p-3 mb-3">
-        <h6 class="fw-bold mb-3" id="issueFormTitle">➕ নতুন ইস্যু</h6>
-        <div class="row g-2">
-          <div class="col-md-2"><label class="form-label small">তারিখ</label><input type="date" id="i_date" class="form-control"></div>
-          <div class="col-md-2"><label class="form-label small">সহকারী</label><select id="i_assistant" class="form-select"></select></div>
-          <div class="col-md-2"><label class="form-label small">ট্রেন</label><select id="i_train" class="form-select"></select></div>
-          <div class="col-md-2"><label class="form-label small">স্টেশন</label><select id="i_station" class="form-select"></select></div>
-          <div class="col-md-2"><label class="form-label small">পরিমাণ</label><input type="number" id="i_qty" class="form-control" min="1"></div>
-          <div class="col-md-2 d-flex align-items-end"><button class="btn btn-primary w-100" onclick="saveIssue()" id="i_btn">সেভ</button></div>
-        </div>
-        <button class="btn btn-sm btn-link mt-2 hidden" id="i_cancel" onclick="cancelIssue()">✖ বাতিল</button>
+    <!-- ✅ ইস্যু তালিকা — কলাপ্স -->
+    <div class="card-box mb-3">
+      <div class="collapse-head" data-bs-toggle="collapse" data-bs-target="#issueListCollapse" aria-expanded="false" aria-controls="issueListCollapse">
+        <h6 class="fw-bold">📋 ইস্যু তালিকা <span class="count-pill" id="issueCount">0</span></h6>
+        <span class="arrow">▼</span>
       </div>
-      <div class="card-box p-3">
-        <h6 class="fw-bold mb-3">📋 ইস্যু তালিকা</h6>
-        <div class="table-responsive"><table class="table table-hover">
-          <thead><tr><th>ID</th><th>তারিখ</th><th>সহকারী</th><th>ট্রেন</th><th>স্টেশন</th><th>পরিমাণ</th><th>অ্যাকশন</th></tr></thead>
-          <tbody id="issueRows"></tbody>
-        </table></div>
+      <div class="collapse" id="issueListCollapse">
+        <div class="collapse-body">
+          <div class="table-responsive"><table class="table table-hover mb-0">
+            <thead><tr><th>ID</th><th>তারিখ</th><th>সহকারী</th><th>ট্রেন</th><th>স্টেশন</th><th>পরিমাণ</th><th>অ্যাকশন</th></tr></thead>
+            <tbody id="issueRows"></tbody>
+          </table></div>
+        </div>
       </div>
     </div>
 
-    <!-- SALES TAB -->
-    <div id="atab-sales" class="hidden">
-      <div class="card-box p-3 mb-3">
-        <h6 class="fw-bold mb-3" id="salesFormTitle">➕ নতুন বিক্রয়</h6>
-        <div class="row g-2">
-          <div class="col-md-2"><label class="form-label small">তারিখ</label><input type="date" id="sa_date" class="form-control"></div>
-          <div class="col-md-2"><label class="form-label small">সহকারী</label><select id="sa_assistant" class="form-select"></select></div>
-          <div class="col-md-2"><label class="form-label small">ট্রেন</label><select id="sa_train" class="form-select"></select></div>
-          <div class="col-md-2"><label class="form-label small">স্টেশন</label><select id="sa_station" class="form-select"></select></div>
-          <div class="col-md-1"><label class="form-label small">সংখ্যা</label><input type="number" id="sa_qty" class="form-control" min="1"></div>
-          <div class="col-md-2"><label class="form-label small">টাকা (৳)</label><input type="number" id="sa_amount" class="form-control" min="0"></div>
-          <div class="col-md-1 d-flex align-items-end"><button class="btn btn-primary w-100" onclick="saveSale()" id="sa_btn">সেভ</button></div>
-        </div>
-        <button class="btn btn-sm btn-link mt-2 hidden" id="sa_cancel" onclick="cancelSale()">✖ বাতিল</button>
+    <!-- ✅ বিক্রয় তালিকা — কলাপ্স -->
+    <div class="card-box mb-3">
+      <div class="collapse-head" data-bs-toggle="collapse" data-bs-target="#salesListCollapse" aria-expanded="false" aria-controls="salesListCollapse">
+        <h6 class="fw-bold">📋 বিক্রয় তালিকা <span class="count-pill" id="salesCount">0</span></h6>
+        <span class="arrow">▼</span>
       </div>
-      <div class="card-box p-3">
-        <h6 class="fw-bold mb-3">📋 বিক্রয় তালিকা</h6>
-        <div class="table-responsive"><table class="table table-hover">
-          <thead><tr><th>ID</th><th>তারিখ</th><th>সহকারী</th><th>ট্রেন</th><th>স্টেশন</th><th>সংখ্যা</th><th>টাকা</th><th>অ্যাকশন</th></tr></thead>
-          <tbody id="salesRows"></tbody>
-        </table></div>
+      <div class="collapse" id="salesListCollapse">
+        <div class="collapse-body">
+          <div class="table-responsive"><table class="table table-hover mb-0">
+            <thead><tr><th>ID</th><th>তারিখ</th><th>সহকারী</th><th>ট্রেন</th><th>স্টেশন</th><th>সংখ্যা</th><th>টাকা</th><th>অ্যাকশন</th></tr></thead>
+            <tbody id="salesRows"></tbody>
+          </table></div>
+        </div>
       </div>
     </div>
 
   </div>
-
 </div>
 
-<!-- ============= CONFIRM MODAL (Edit/Delete Popup) ============= -->
+<!-- ============= STOCK ENTRY MODAL ============= -->
+<div class="modal fade entry-modal" id="stockModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="stockFormTitle">➕ নতুন স্টক এন্ট্রি</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2">
+          <div class="col-6"><label class="form-label small">তারিখ</label><input type="date" id="s_date" class="form-control"></div>
+          <div class="col-6"><label class="form-label small">ক্লাস</label><input value="শোভন" class="form-control" readonly></div>
+          <div class="col-12"><label class="form-label small">ট্রেন</label><select id="s_train" class="form-select"></select></div>
+          <div class="col-12"><label class="form-label small">স্টেশন</label><select id="s_station" class="form-select"></select></div>
+          <div class="col-6"><label class="form-label small">পরিমাণ</label><input type="number" id="s_qty" class="form-control" min="1"></div>
+          <div class="col-6"><label class="form-label small">নোট</label><input id="s_note" class="form-control"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">✖ বাতিল</button>
+        <button type="button" class="btn btn-primary px-4" id="s_btn" onclick="saveStock()">সেভ</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============= ISSUE ENTRY MODAL ============= -->
+<div class="modal fade entry-modal" id="issueModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="issueFormTitle">➕ নতুন ইস্যু</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2">
+          <div class="col-6"><label class="form-label small">তারিখ</label><input type="date" id="i_date" class="form-control"></div>
+          <div class="col-6"><label class="form-label small">পরিমাণ</label><input type="number" id="i_qty" class="form-control" min="1"></div>
+          <div class="col-12"><label class="form-label small">সহকারী</label><select id="i_assistant" class="form-select"></select></div>
+          <div class="col-12"><label class="form-label small">ট্রেন</label><select id="i_train" class="form-select"></select></div>
+          <div class="col-12"><label class="form-label small">স্টেশন</label><select id="i_station" class="form-select"></select></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">✖ বাতিল</button>
+        <button type="button" class="btn btn-success px-4" id="i_btn" onclick="saveIssue()">সেভ</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============= SALE ENTRY MODAL ============= -->
+<div class="modal fade entry-modal" id="saleModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="salesFormTitle">➕ নতুন বিক্রয়</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2">
+          <div class="col-12"><label class="form-label small">তারিখ</label><input type="date" id="sa_date" class="form-control"></div>
+          <div class="col-12"><label class="form-label small">সহকারী</label><select id="sa_assistant" class="form-select"></select></div>
+          <div class="col-12"><label class="form-label small">ট্রেন</label><select id="sa_train" class="form-select"></select></div>
+          <div class="col-12"><label class="form-label small">স্টেশন</label><select id="sa_station" class="form-select"></select></div>
+          <div class="col-6"><label class="form-label small">সংখ্যা</label><input type="number" id="sa_qty" class="form-control" min="1"></div>
+          <div class="col-6"><label class="form-label small">টাকা (৳)</label><input type="number" id="sa_amount" class="form-control" min="0"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">✖ বাতিল</button>
+        <button type="button" class="btn btn-warning px-4" id="sa_btn" onclick="saveSale()">সেভ</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============= CONFIRM MODAL ============= -->
 <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content border-0 shadow-lg" style="border-radius:16px;">
@@ -258,7 +342,7 @@ let editStockId=null, editIssueId=null, editSaleId=null;
 let barChart, pieChart;
 let adminLoggedIn = false;
 
-/* ---------- 🕐 LOCAL DATE HELPERS (Timezone FIX) ---------- */
+/* ---------- 🕐 LOCAL DATE HELPERS ---------- */
 function getLocalDate(d) {
   d = d || new Date();
   const y = d.getFullYear();
@@ -270,15 +354,17 @@ function normalizeDate(v) {
   if (!v) return '';
   if (v instanceof Date) return getLocalDate(v);
   const s = String(v).trim();
-  // শুধু তারিখ (সময় ছাড়া) হলে সরাসরি নাও
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  // সময়সহ ISO (যেমন 2026-11-02T18:00:00.000Z) হলে UTC কেটে নয়, লোকাল সময়ে রূপান্তর করো
   const d = new Date(s);
   if (isNaN(d.getTime())) return '';
   return getLocalDate(d);
 }
 
-/* ---------- ✅ ফিক্স ২: CONFIRM MODAL HELPER ---------- */
+/* ---------- MODAL HELPERS ---------- */
+function showModal(id){ bootstrap.Modal.getOrCreateInstance(document.getElementById(id)).show(); }
+function hideModal(id){ bootstrap.Modal.getOrCreateInstance(document.getElementById(id)).hide(); }
+
+/* ---------- CONFIRM MODAL ---------- */
 let confirmModalInstance = null;
 
 function showConfirm(opts) {
@@ -296,7 +382,6 @@ function showConfirm(opts) {
     iconEl.className   = 'modal-icon ' + (opts.danger ? 'danger' : 'warn');
     iconEl.textContent = opts.danger ? '🗑️' : '✏️';
 
-    // পুরোনো লিসেনার সরাতে বাটন ক্লোন করে বদলানো হচ্ছে
     const oldBtn = document.getElementById('confirmOkBtn');
     const okBtn = oldBtn.cloneNode(true);
     oldBtn.parentNode.replaceChild(okBtn, oldBtn);
@@ -498,6 +583,7 @@ function renderDashboard() {
   document.getElementById('totalAmount').textContent='৳'+tAmt.toLocaleString('en-IN');
 
   const rows=Object.values(bySt).sort((a,b)=>a.train_no-b.train_no);
+  document.getElementById('stationCount').textContent = rows.length;
   const tb=document.getElementById('stockTable');tb.innerHTML='';
   rows.forEach(r=>{
     const rem=r.stock-r.issued, wA=r.issued-r.sold;
@@ -537,38 +623,59 @@ function renderDashboard() {
 
 /* ---------- ADMIN TABLES ---------- */
 function renderStockTable() {
+  document.getElementById('stockCount').textContent = STOCK.length;
   const tb=document.getElementById('stockRows');tb.innerHTML='';
   STOCK.slice().reverse().forEach(r=>{
     tb.innerHTML+=`<tr class="${String(editStockId)===String(r.id)?'editing-mode':''}">
       <td>${r.id}</td><td>${normalizeDate(r.date)}</td><td>${r.train_no}</td>
       <td>${r.station}</td><td>${r.qty}</td><td>${r.note||'-'}</td>
-      <td><button class="btn btn-sm btn-warning me-1" onclick="editStock('${r.id}')">✏️</button>
+      <td class="text-nowrap"><button class="btn btn-sm btn-warning me-1" onclick="editStock('${r.id}')">✏️</button>
       <button class="btn btn-sm btn-danger" onclick="delStock('${r.id}')">🗑️</button></td></tr>`;
   });
 }
 function renderIssueTable() {
+  document.getElementById('issueCount').textContent = ISSUE.length;
   const tb=document.getElementById('issueRows');tb.innerHTML='';
   ISSUE.slice().reverse().forEach(r=>{
     tb.innerHTML+=`<tr class="${String(editIssueId)===String(r.id)?'editing-mode':''}">
       <td>${r.id}</td><td>${normalizeDate(r.date)}</td><td>${r.assistant}</td>
       <td>${r.train_no}</td><td>${r.station}</td><td>${r.qty}</td>
-      <td><button class="btn btn-sm btn-warning me-1" onclick="editIssue('${r.id}')">✏️</button>
+      <td class="text-nowrap"><button class="btn btn-sm btn-warning me-1" onclick="editIssue('${r.id}')">✏️</button>
       <button class="btn btn-sm btn-danger" onclick="delIssue('${r.id}')">🗑️</button></td></tr>`;
   });
 }
 function renderSalesTable() {
+  document.getElementById('salesCount').textContent = SALES.length;
   const tb=document.getElementById('salesRows');tb.innerHTML='';
   SALES.slice().reverse().forEach(r=>{
     tb.innerHTML+=`<tr class="${String(editSaleId)===String(r.id)?'editing-mode':''}">
       <td>${r.id}</td><td>${normalizeDate(r.date)}</td><td>${r.assistant}</td>
       <td>${r.train_no}</td><td>${r.station}</td><td>${r.qty}</td>
       <td>৳${Number(r.amount).toLocaleString('en-IN')}</td>
-      <td><button class="btn btn-sm btn-warning me-1" onclick="editSale('${r.id}')">✏️</button>
+      <td class="text-nowrap"><button class="btn btn-sm btn-warning me-1" onclick="editSale('${r.id}')">✏️</button>
       <button class="btn btn-sm btn-danger" onclick="delSale('${r.id}')">🗑️</button></td></tr>`;
   });
 }
 
-/* ---------- STOCK CRUD ---------- */
+/* ============================================================
+   STOCK
+   ============================================================ */
+function resetStockForm(){
+  editStockId=null;
+  document.getElementById('stockFormTitle').textContent='➕ নতুন স্টক এন্ট্রি';
+  document.getElementById('s_btn').textContent='সেভ';
+  document.getElementById('s_qty').value='';
+  document.getElementById('s_note').value='';
+  document.getElementById('s_date').value=getLocalDate();
+  document.getElementById('s_train').value='';
+  document.getElementById('s_station').value='';
+  renderStockTable();
+}
+function openStockModal(){
+  resetStockForm();
+  showModal('stockModal');
+}
+
 async function saveStock() {
   const p={
     date:document.getElementById('s_date').value,
@@ -581,10 +688,11 @@ async function saveStock() {
   if(!p.date||!p.train_no||!p.station||!p.qty) return alert('সব ঘর পূরণ করুন');
   if(Number(p.qty) <= 0) return alert('পরিমাণ ০ এর বেশি হতে হবে');
   const isEdit=!!editStockId;
+  const id=editStockId;
   try {
     setStatus('saving');
-    await apiCall(isEdit?{action:'updateStock',id:editStockId,...p}:{action:'addStock',...p});
-    cancelStock();
+    await apiCall(isEdit?{action:'updateStock',id,...p}:{action:'addStock',...p});
+    hideModal('stockModal');
     await loadAll();
     toast(isEdit?'আপডেট হয়েছে ✅':'সেভ হয়েছে ✅');
   } catch(e){ alert(e.message); setStatus('error', e.message); }
@@ -608,20 +716,29 @@ async function editStock(id){
   document.getElementById('s_note').value=r.note||'';
   document.getElementById('stockFormTitle').textContent='✏️ এডিট (ID:'+r.id+')';
   document.getElementById('s_btn').textContent='আপডেট';
-  document.getElementById('s_cancel').classList.remove('hidden');
   renderStockTable();
-}
-function cancelStock(){
-  editStockId=null;
-  document.getElementById('stockFormTitle').textContent='➕ নতুন স্টক এন্ট্রি';
-  document.getElementById('s_btn').textContent='সেভ';
-  document.getElementById('s_cancel').classList.add('hidden');
-  document.getElementById('s_qty').value='';document.getElementById('s_note').value='';
-  document.getElementById('s_date').value=getLocalDate();
-  renderStockTable();
+  showModal('stockModal');
 }
 
-/* ---------- ISSUE CRUD ---------- */
+/* ============================================================
+   ISSUE
+   ============================================================ */
+function resetIssueForm(){
+  editIssueId=null;
+  document.getElementById('issueFormTitle').textContent='➕ নতুন ইস্যু';
+  document.getElementById('i_btn').textContent='সেভ';
+  document.getElementById('i_qty').value='';
+  document.getElementById('i_date').value=getLocalDate();
+  document.getElementById('i_assistant').value='';
+  document.getElementById('i_train').value='';
+  document.getElementById('i_station').value='';
+  renderIssueTable();
+}
+function openIssueModal(){
+  resetIssueForm();
+  showModal('issueModal');
+}
+
 async function saveIssue(){
   const p={
     date:document.getElementById('i_date').value,
@@ -644,10 +761,11 @@ async function saveIssue(){
   }
 
   const isEdit=!!editIssueId;
+  const id=editIssueId;
   try {
     setStatus('saving');
-    await apiCall(isEdit?{action:'updateIssue',id:editIssueId,...p}:{action:'addIssue',...p});
-    cancelIssue();
+    await apiCall(isEdit?{action:'updateIssue',id,...p}:{action:'addIssue',...p});
+    hideModal('issueModal');
     await loadAll();
     toast(isEdit?'আপডেট হয়েছে ✅':'সেভ হয়েছে ✅');
   } catch(e){ alert(e.message); setStatus('error', e.message); }
@@ -670,20 +788,30 @@ async function editIssue(id){
   document.getElementById('i_qty').value=r.qty;
   document.getElementById('issueFormTitle').textContent='✏️ এডিট (ID:'+r.id+')';
   document.getElementById('i_btn').textContent='আপডেট';
-  document.getElementById('i_cancel').classList.remove('hidden');
   renderIssueTable();
-}
-function cancelIssue(){
-  editIssueId=null;
-  document.getElementById('issueFormTitle').textContent='➕ নতুন ইস্যু';
-  document.getElementById('i_btn').textContent='সেভ';
-  document.getElementById('i_cancel').classList.add('hidden');
-  document.getElementById('i_qty').value='';
-  document.getElementById('i_date').value=getLocalDate();
-  renderIssueTable();
+  showModal('issueModal');
 }
 
-/* ---------- SALES CRUD ---------- */
+/* ============================================================
+   SALES
+   ============================================================ */
+function resetSaleForm(){
+  editSaleId=null;
+  document.getElementById('salesFormTitle').textContent='➕ নতুন বিক্রয়';
+  document.getElementById('sa_btn').textContent='সেভ';
+  document.getElementById('sa_qty').value='';
+  document.getElementById('sa_amount').value='';
+  document.getElementById('sa_date').value=getLocalDate();
+  document.getElementById('sa_assistant').value='';
+  document.getElementById('sa_train').value='';
+  document.getElementById('sa_station').value='';
+  renderSalesTable();
+}
+function openSaleModal(){
+  resetSaleForm();
+  showModal('saleModal');
+}
+
 async function saveSale(){
   const p={
     date:document.getElementById('sa_date').value,
@@ -708,10 +836,11 @@ async function saveSale(){
   }
 
   const isEdit=!!editSaleId;
+  const id=editSaleId;
   try {
     setStatus('saving');
-    await apiCall(isEdit?{action:'updateSale',id:editSaleId,...p}:{action:'addSale',...p});
-    cancelSale();
+    await apiCall(isEdit?{action:'updateSale',id,...p}:{action:'addSale',...p});
+    hideModal('saleModal');
     await loadAll();
     toast(isEdit?'আপডেট হয়েছে ✅':'সেভ হয়েছে ✅');
   } catch(e){ alert(e.message); setStatus('error', e.message); }
@@ -735,18 +864,14 @@ async function editSale(id){
   document.getElementById('sa_amount').value=r.amount;
   document.getElementById('salesFormTitle').textContent='✏️ এডিট (ID:'+r.id+')';
   document.getElementById('sa_btn').textContent='আপডেট';
-  document.getElementById('sa_cancel').classList.remove('hidden');
   renderSalesTable();
+  showModal('saleModal');
 }
-function cancelSale(){
-  editSaleId=null;
-  document.getElementById('salesFormTitle').textContent='➕ নতুন বিক্রয়';
-  document.getElementById('sa_btn').textContent='সেভ';
-  document.getElementById('sa_cancel').classList.add('hidden');
-  document.getElementById('sa_qty').value='';document.getElementById('sa_amount').value='';
-  document.getElementById('sa_date').value=getLocalDate();
-  renderSalesTable();
-}
+
+/* ---------- পপ-আপ বন্ধ হলে ফর্ম রিসেট ---------- */
+document.getElementById('stockModal').addEventListener('hidden.bs.modal', resetStockForm);
+document.getElementById('issueModal').addEventListener('hidden.bs.modal', resetIssueForm);
+document.getElementById('saleModal').addEventListener('hidden.bs.modal', resetSaleForm);
 
 /* ---------- DELETE (with Modal) ---------- */
 async function delStock(id){
@@ -799,17 +924,6 @@ async function delSale(id){
     toast('ডিলিট হয়েছে ✅');
   }catch(e){ alert(e.message); setStatus('error', e.message); }
 }
-
-/* ---------- ADMIN TABS ---------- */
-document.querySelectorAll('[data-atab]').forEach(a=>{
-  a.addEventListener('click',e=>{
-    e.preventDefault();
-    document.querySelectorAll('[data-atab]').forEach(x=>x.classList.remove('active'));
-    a.classList.add('active');
-    ['stock','issue','sales'].forEach(t=>document.getElementById('atab-'+t).classList.add('hidden'));
-    document.getElementById('atab-'+a.dataset.atab).classList.remove('hidden');
-  });
-});
 
 /* ---------- ENTER KEY FOR LOGIN ---------- */
 document.getElementById('adminUser').addEventListener('keypress', e=>{
